@@ -1,0 +1,61 @@
+1. Number of unique pages found
+1
+
+2. Longest page (by number of words)
+URL: https://ics.uci.edu/
+Word count: 1252
+
+3. 50 most common words
+,: 44
+&: 30
+.: 29
+ICS: 15
+Research: 13
+Science: 11
+2025: 11
+’: 11
+Computer: 9
+(: 9
+): 9
+Irvine: 8
+Programs: 8
+Student: 8
+Explore: 8
+Master: 8
+can: 8
+Undergraduate: 7
+Learning: 7
+View: 7
+s: 7
+Information: 6
+!: 6
+UC: 5
+computing: 5
+graduate: 5
+Graduate: 5
+community: 5
+Honors: 5
+December: 5
+We: 5
+Session: 5
+learn: 5
+us: 5
+Donald: 4
+Bren: 4
+School: 4
+Informatics: 4
+students: 4
+Machine: 4
+Faculty: 4
+Awards: 4
+News: 4
+Spotlights: 4
+Hall: 4
+Marios: 4
+Papaefthymiou: 4
+How: 4
+Innovation: 4
+PMZoom: 4
+
+4. Subdomains found under *.uci.edu
+ics.uci.edu, 1
