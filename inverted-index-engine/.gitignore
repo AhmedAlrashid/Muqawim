@@ -1,0 +1,10 @@
+# any big datasets here
+developer/
+developer.zip
+data/
+index/
+*.zip
+*.jsonl
+__pycache__/
+*.pyc
+.DS_Store
