@@ -3,6 +3,8 @@ from datetime import datetime
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from hashlib import sha256
+from urllib.parse import urlparse
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / "utils.env", override=True)
@@ -51,3 +53,48 @@ def myGetLogger():
 logger = myGetLogger()
 logger.info("I told you so")
 logger.warning("hell no")
+
+
+def get_urlhash(url):
+    parsed = urlparse(url)
+    # everything other than scheme.
+    return sha256(
+        f"{parsed.netloc}/{parsed.path}/{parsed.params}/"
+        f"{parsed.query}/{parsed.fragment}".encode("utf-8")).hexdigest()
+
+def normalize(url):
+    if url.endswith("/"):
+        return url.rstrip("/")
+    return url
+
+
+def log_warning(logger, url, status_code, msg, **extra):
+    """Log a structured warning about a failed or problematic request.
+    
+    Args:
+        logger: Logger instance
+        url: URL that had the issue
+        status_code: HTTP status code
+        msg: Description of the issue
+        **extra: Additional fields (e.g. headers, retries)
+    """
+    details = {"url": url, "status_code": status_code}
+    details.update(extra)
+    logger.warning(f"Scrape warning: {msg} | {details}")
+
+
+def log_success(logger, url, items_scraped=0, duration_sec=None, **extra):
+    """Log a structured success entry for a completed scrape.
+    
+    Args:
+        logger: Logger instance
+        url: Successfully scraped URL
+        items_scraped: Number of items extracted
+        duration_sec: Time taken in seconds
+        **extra: Additional metadata
+    """
+    details = {"url": url, "items_scraped": items_scraped}
+    if duration_sec is not None:
+        details["duration_sec"] = round(duration_sec, 3)
+    details.update(extra)
+    logger.info(f"Scrape success | {details}")
