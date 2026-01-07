@@ -5,12 +5,10 @@ from nltk.tokenize import word_tokenize
 # GLOBAL VAR for minimum words for a website to be useful
 MIN_WORDS = 100
 
-# Allowed UCI domains for crawling - CRITICAL REQUIREMENT
+# Allowed domains for crawling - updated for current crawler target
 ALLOWED_DOMAINS = [
-    "ics.uci.edu",
-    "cs.uci.edu",
-    "informatics.uci.edu",
-    "stat.uci.edu"
+    "aljazeera.com",
+    "www.aljazeera.com"
 ]
 
 # common stop words provided in write-up
