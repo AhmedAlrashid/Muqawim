@@ -114,4 +114,4 @@ venv.bak/
 .vscode/
 
 *.full.py
-*.shelve
+*.shelveanalytics_data.json
