@@ -2,15 +2,15 @@ import re
 from urllib.parse import urlparse, urljoin, urldefrag
 from lxml import html
 from nltk.tokenize import word_tokenize
+import sys
+import signal
 # GLOBAL VAR for minimum words for a website to be useful
 MIN_WORDS = 100
 
-# Allowed UCI domains for crawling - CRITICAL REQUIREMENT
+# Allowed domains for crawling - updated for current crawler target
 ALLOWED_DOMAINS = [
-    "ics.uci.edu",
-    "cs.uci.edu",
-    "informatics.uci.edu",
-    "stat.uci.edu"
+    "www.aljazeera.com",
+    "aljazeera.com"
 ]
 
 # common stop words provided in write-up
@@ -172,6 +172,11 @@ def update_word_frequencies(words):
         # excludes any stopwords from the set
         if word not in stopwords:
             analytics["word_frequencies"][word] = (analytics["word_frequencies"].get(word, 0) + 1)
+
+def sigint_handler(signum,frame):
+    if signum==2:
+        print("You have pressed ctrl+c")
+        sys.exit(0)
 
 def update_longest_page(clean_url, word_count):
     """Helper function to update longest page analytics"""

@@ -1,3 +1,10 @@
+#config files, shelve files, crawled pages files
+*.txt
+frontier.*
+*.ini
+analytics_data.json
+*.log
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -107,4 +114,4 @@ venv.bak/
 .vscode/
 
 *.full.py
-*.shelve
+*.shelveanalytics_data.json
