@@ -2,7 +2,7 @@
 *.txt
 frontier.*
 *.ini
-analytics.json
+analytics_data.json
 *.log
 
 # Byte-compiled / optimized / DLL files
