@@ -25,8 +25,8 @@ export default function TitleCard({
 
   const container: React.CSSProperties = {
     position: "relative",
-    width: "50%",
-    height: 620,
+    width: "600px",
+    height: "75%",
     borderRadius: 12,
     overflow: "hidden",
     backgroundImage: bg ? `url(${bg})` : undefined,
@@ -35,6 +35,7 @@ export default function TitleCard({
     display: "flex",
     alignItems: "flex-end",
     cursor: onClick ? "pointer" : "default",
+    flexShrink: 0,
   };
 
   const overlay: React.CSSProperties = {
