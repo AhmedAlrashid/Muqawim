@@ -1,0 +1,5 @@
+2026-02-08 23:37:13,335 - INFO - ============================================================
+2026-02-08 23:37:13,335 - INFO - SCRAPER STARTED - Initializing web crawler
+2026-02-08 23:37:13,335 - INFO - Target domains: www.aljazeera.com, aljazeera.com, english.alarabiya.net, www.english.alarabiya.net, lualuatv.net, mondoweiss.net, www.mintpressnews.com, mintpressnews.com
+2026-02-08 23:37:13,337 - INFO - Minimum words per page: 100
+2026-02-08 23:37:13,337 - INFO - ============================================================

@@ -1,16 +1,36 @@
 import re
+import logging
+import datetime
 from urllib.parse import urlparse, urljoin, urldefrag
 from lxml import html
 from nltk.tokenize import word_tokenize
 import sys
 import signal
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(f'scraper_log_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log'),
+        logging.StreamHandler()  # Also print to console
+    ]
+)
+logger = logging.getLogger(__name__)
+
 # GLOBAL VAR for minimum words for a website to be useful
 MIN_WORDS = 100
 
 # Allowed domains for crawling - updated for current crawler target
 ALLOWED_DOMAINS = [
     "www.aljazeera.com",
-    "aljazeera.com"
+    "aljazeera.com",
+    "english.alarabiya.net",
+    "www.english.alarabiya.net",
+    "lualuatv.net",
+    "mondoweiss.net",
+    "www.mintpressnews.com",
+    "mintpressnews.com"
 ]
 
 # common stop words provided in write-up
@@ -49,6 +69,13 @@ analytics = {
     "subdomain_counts": {}
 }
 
+# Log scraper startup
+logger.info("=" * 60)
+logger.info("SCRAPER STARTED - Initializing web crawler")
+logger.info(f"Target domains: {', '.join(ALLOWED_DOMAINS)}")
+logger.info(f"Minimum words per page: {MIN_WORDS}")
+logger.info("=" * 60)
+
 
 
 def finalize_report():
@@ -59,6 +86,7 @@ def finalize_report():
         3. 50 Most common words from entire set of crawled sites
         4. Subdomains of "*.uci.edu" with their corresponding count
         """
+        logger.info("[REPORT] Starting to generate final analytics report")
         try:
             with open("report.txt", "w") as f:
                 # number of unique pages
@@ -99,11 +127,14 @@ def finalize_report():
                     # shouldn't run this tbh
                     f.write("No subdomains found.\n")
 
+            logger.info(f"[REPORT SUCCESS] Analytics report written to report.txt")
+            logger.info(f"[REPORT SUMMARY] {len(analytics['unique_pages'])} unique pages, {len(analytics['word_frequencies'])} unique words")
             print(
                 f"[Analytics] Results written to report.txt\n"
             )
 
         except Exception as e:
+            logger.error(f"[REPORT ERROR] Failed to write output file: {e}")
             print(f"[Analytics ERROR] Failed to write output file: {e}")
 
 
@@ -182,8 +213,11 @@ def update_longest_page(clean_url, word_count):
     """Helper function to update longest page analytics"""
     # Will update the longest page analytics
     if word_count > analytics["longest_page_word_count"]:
+        old_url = analytics["longest_page_url"]
+        old_count = analytics["longest_page_word_count"]
         analytics["longest_page_url"] = clean_url
         analytics["longest_page_word_count"] = word_count
+        logger.info(f"[NEW LONGEST PAGE] {clean_url} ({word_count} words) replaced {old_url} ({old_count} words)")
 
 def update_subdomain_analytics(clean_url):
     """Helper function to implement subdomain tracking for report question 4"""
@@ -202,8 +236,11 @@ def update_subdomain_analytics(clean_url):
             # Count unique pages per subdomain
             if netloc not in analytics["subdomain_counts"]:
                 analytics["subdomain_counts"][netloc] = 0
+                logger.info(f"[NEW SUBDOMAIN] Discovered subdomain: {netloc}")
             analytics["subdomain_counts"][netloc] += 1
+            logger.debug(f"[SUBDOMAIN UPDATE] {netloc} now has {analytics['subdomain_counts'][netloc]} pages")
     except Exception as e:
+        logger.warning(f"[SUBDOMAIN ERROR] Failed to process subdomain for {clean_url}: {e}")
         # Silently handle any URL parsing errors
         pass
 
@@ -211,17 +248,22 @@ def save_analytics_to_file():
     """Helper function to save analytics data for report generation"""
     import json
     
-    # Convert set to list for JSON serialization
-    analytics_copy = analytics.copy()
-    analytics_copy["unique_pages"] = list(analytics["unique_pages"])
-    
-    with open("analytics_data.json", "w") as f:
-        json.dump(analytics_copy, f, indent=2)
-    
-    print(f"Analytics saved: {len(analytics['unique_pages'])} unique pages crawled")
+    try:
+        # Convert set to list for JSON serialization
+        analytics_copy = analytics.copy()
+        analytics_copy["unique_pages"] = list(analytics["unique_pages"])
+        
+        with open("analytics_data.json", "w") as f:
+            json.dump(analytics_copy, f, indent=2)
+        
+        logger.info(f"[ANALYTICS SAVED] {len(analytics['unique_pages'])} unique pages, {len(analytics['word_frequencies'])} unique words, {len(analytics['subdomain_counts'])} subdomains")
+        print(f"Analytics saved: {len(analytics['unique_pages'])} unique pages crawled")
+    except Exception as e:
+        logger.error(f"[ANALYTICS SAVE ERROR] Failed to save analytics: {e}")
 
 def process_page_analytics(clean_url, tree):
     """Helper function to process all analytics for a page"""
+    logger.debug(f"[PROCESSING] Starting analytics for: {clean_url}")
     try:
         # Extract text using lxml instead of BeautifulSoup
         text = extract_text_from_tree(tree)
@@ -232,6 +274,7 @@ def process_page_analytics(clean_url, tree):
         word_count = len(words)
         # will skip pages with minimal content (groupmate's logic)
         if word_count < MIN_WORDS: # REVIEW BC IDK IF ITS TOO LOW OR HIGH 
+            logger.info(f"[SKIPPED - LOW CONTENT] {clean_url} - Only {word_count} words (min: {MIN_WORDS})")
             return False  # Indicates page should be skipped
         
         # Add URL to unique pages set (this was missing!)
@@ -242,20 +285,29 @@ def process_page_analytics(clean_url, tree):
         update_longest_page(clean_url, word_count)
         update_subdomain_analytics(clean_url)
         
+        logger.info(f"[SUCCESS] Processed {clean_url} - {word_count} words, {len(set(words))} unique tokens")
+        
         # Save analytics periodically (every 100 pages)
         if len(analytics["unique_pages"]) % 100 == 0:
+            logger.info(f"[MILESTONE] Processed {len(analytics['unique_pages'])} pages - saving analytics checkpoint")
             save_analytics_to_file()
         
         return True  # Indicates page was processed successfully
         
     except Exception as e:
+        logger.error(f"[PROCESSING ERROR] Failed to process analytics for {clean_url}: {e}")
         print(f"Error processing analytics for {clean_url}: {e}")
         return False
 
 def scraper(url, resp):
+    logger.debug(f"[SCRAPER START] Processing URL: {url}")
     links = extract_next_links(url, resp)
+    logger.info(f"[LINKS EXTRACTED] Found {len(links)} raw links from {url}")
+    
     # will be a list containing all the valid links after extraction
     valid_links = [link for link in links if is_valid(link)]
+    logger.info(f"[LINKS VALIDATED] {len(valid_links)} valid links from {len(links)} total links ({url})")
+    
     # checks if the response is valid and if there is any valid content to parse
     if (resp.status == 200) and (resp.raw_response) and (resp.raw_response.content):
         # this will separate the url from the fragment(fragment not needed)
@@ -270,9 +322,13 @@ def scraper(url, resp):
                     print("[SCRAPER] skipped this page")
                     return valid_links  # Skip if page has minimal content
                 analytics["unique_pages"].add(clean_url)
+                logger.info(f"[PAGE SUCCESS] Successfully processed and added to analytics: {clean_url}")
                 
             except Exception as e:
+                logger.error(f"[PAGE ERROR] Failed to parse/process {clean_url}: {e}")
                 print(f"Error for {clean_url}: {e}")
+    else:
+        logger.warning(f"[INVALID RESPONSE] URL: {url}, Status: {resp.status}, Has content: {bool(resp.raw_response and resp.raw_response.content)}")
     return valid_links
 
 def extract_links_from_tree(tree, base_url):
@@ -305,12 +361,15 @@ def extract_next_links(url, resp):
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     
+    logger.debug(f"[EXTRACT LINKS] Starting extraction from: {url}")
     new_urls = []
 
     if resp.status != 200:
+        logger.warning(f"[EXTRACT FAILED] Non-200 status ({resp.status}) for {url}")
         return new_urls
 
     if resp.raw_response is None or resp.raw_response.content is None:
+        logger.warning(f"[EXTRACT FAILED] No content available for {url}")
         return new_urls
     
     try:
@@ -320,8 +379,10 @@ def extract_next_links(url, resp):
         
         # Extract links using helper function
         new_urls = extract_links_from_tree(tree, base_url)
+        logger.debug(f"[EXTRACT SUCCESS] Found {len(new_urls)} raw links from {url}")
     
     except Exception as e:
+        logger.error(f"[EXTRACT ERROR] Failed to parse HTML for {url}: {e}")
         print(f"Error parsing HTML for {url}: {e}")
         return []
     
@@ -382,6 +443,7 @@ def is_valid(url):
     try:
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
+            logger.debug(f"[BLOCKED - SCHEME] {url} - Invalid scheme: {parsed.scheme}")
             return False
         
         # Check if URL is in allowed UCI domains - CRITICAL REQUIREMENT
@@ -395,15 +457,17 @@ def is_valid(url):
                 break
         
         if not is_valid_domain:
+            logger.debug(f"[BLOCKED - DOMAIN] {url} - Domain '{netloc}' not in allowed domains")
             return False
         
         # checks if the URL is one of the traps (includes print testing)
         if not check_for_traps(url, parsed):
+            logger.info(f"[BLOCKED - TRAP] {url}")
             print(f"[TRAP BLOCKED] {url}")
             return False
         
         # Check for unwanted file extensions
-        return not re.match(
+        file_extension_blocked = re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
@@ -413,8 +477,14 @@ def is_valid(url):
             + r"|thmx|mso|arff|rtf|jar|csv|img|c|cpp|h|py|java"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
         
+        if file_extension_blocked:
+            logger.debug(f"[BLOCKED - FILE EXT] {url} - Unwanted file extension")
+            return False
+        
+        logger.debug(f"[VALID] {url} - Passed all validation checks")
         return True
-
-    except TypeError:
+        
+    except TypeError as e:
+        logger.error(f"[VALIDATION ERROR] TypeError for {url}: {e}")
         print ("TypeError for ", parsed)
         return False
