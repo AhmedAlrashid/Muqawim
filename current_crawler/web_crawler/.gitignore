@@ -4,7 +4,7 @@ frontier.*
 *.ini
 analytics_data.json
 *.log
-
+data/downloaded_pages/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
