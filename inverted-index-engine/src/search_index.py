@@ -3,6 +3,7 @@ from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
 from index_the_index import load_lexicon_into_memory
 import time
+import json
 from flask import Flask, request, jsonify
 import flask
 
@@ -16,6 +17,7 @@ app = Flask(__name__)
 # Global variables to store loaded data (initialized at startup)
 lexicon = None
 url_mapping = None
+metadata = None
 
 def load_search_data():
     """Load lexicon and URL mapping data once at startup for better performance"""
@@ -26,6 +28,19 @@ def load_search_data():
     
     lexicon = load_lexicon_into_memory(project_root / "index" / "lexicon.txt")
     url_mapping = load_url_mapping(project_root / "index" / "url_mapping.txt")
+    # Load article metadata JSON
+    try:
+        global metadata
+        metadata_path = project_root / "index" / "article_metadata.json"
+        with open(metadata_path, 'r', encoding='utf-8') as mf:
+            metadata = json.load(mf)
+        print(f"✓ Loaded metadata for {len(metadata)} documents")
+    except FileNotFoundError:
+        print(f"Metadata file not found: {metadata_path}")
+        metadata = {}
+    except Exception as e:
+        print(f"Error loading metadata: {e}")
+        metadata = {}
     
     startup_end = time.time()
     startup_time = (startup_end - startup_start) * 1000
@@ -407,7 +422,7 @@ class Query:
             
             return sorted_urls
         
-    def get_sorted_urls_by_tf_idf(self, query, lexicon, url_mapping):
+    def get_sorted_doc_ids_by_tf_idf(self, query, lexicon, url_mapping):
         """
         Get URLs sorted by their TF-IDF score in descending order
         
@@ -444,20 +459,7 @@ class Query:
                                 key=lambda x: doc_scores[x], 
                                 reverse=True)
         
-        # Map document IDs to URLs using in-memory mapping
-        url_frequency_map = {}
-        
-        for doc_id in sorted_doc_ids:
-            if doc_id in url_mapping:
-                url = url_mapping[doc_id]
-                url_frequency_map[url] = doc_scores[doc_id]
-        
-        # Sort URLs by their TF-IDF in descending order
-        sorted_urls = sorted(url_frequency_map.keys(), 
-                             key=lambda x: url_frequency_map[x], 
-                             reverse=True)
-        
-        return sorted_urls
+        return sorted_doc_ids
     
     def boolean_AND_operator(self, query, lexicon, url_mapping):
         """Process boolean AND queries with stemmed terms"""
@@ -481,6 +483,19 @@ class Query:
         common_urls = set.intersection(*all_term_results)
 
         return list(common_urls)
+    
+    def get_article_and_headline(self, metadata_json, sorted_doc_ids):
+        results = []
+        for doc_id in sorted_doc_ids:
+            entry = metadata_json.get(doc_id, {}) if isinstance(metadata_json, dict) else {}
+            results.append({
+                'doc_id': doc_id,
+                'headline': entry.get('headline', ''),
+                'article': entry.get('content', ''),
+                'url': entry.get('url', '')
+            })
+
+        return results
 
 
 def load_url_mapping(url_mapping_path):
@@ -502,6 +517,7 @@ def load_url_mapping(url_mapping_path):
     return url_mapping
 
 
+
 def search_query_logic(query_text):
     """
     Core search logic function - extracted from test_search_local.py
@@ -513,8 +529,7 @@ def search_query_logic(query_text):
     Returns:
         Dictionary with search results in API format
     """
-    global lexicon, url_mapping
-    
+    global lexicon, url_mapping, metadata
     try:
         # Use pre-loaded data instead of loading on every request
         if lexicon is None or url_mapping is None:
@@ -535,9 +550,20 @@ def search_query_logic(query_text):
             stemmed_query = query_processor.stem_query_term(query_text)
             query_info = f"Single word - Stemmed query: '{query_text}' -> '{stemmed_query}'"
         
-        # Use TF-IDF scoring for all queries
-        sorted_urls = query_processor.get_sorted_urls_by_tf_idf(query_text, lexicon, url_mapping)
-        
+        # Ensure metadata is available (fallback)
+        if metadata is None:
+            try:
+                with open(project_root / "index" / "article_metadata.json", 'r', encoding='utf-8') as mf:
+                    metadata = json.load(mf)
+            except Exception:
+                metadata = {}
+
+        # Use TF-IDF scoring for all queries (get doc IDs)
+        sorted_doc_ids = query_processor.get_sorted_doc_ids_by_tf_idf(query_text, lexicon, url_mapping)
+
+        # Retrieve headlines/articles using doc IDs
+        sorted_urls_with_headlines_and_articles = query_processor.get_article_and_headline(metadata, sorted_doc_ids)
+
         # End timing - this now measures ONLY the search algorithm
         end_time = time.time()
         duration_ms = (end_time - start_time) * 1000
@@ -547,11 +573,12 @@ def search_query_logic(query_text):
             'query': query_text,
             'query_info': query_info,
             'total_documents': len(url_mapping),
-            'results_count': len(sorted_urls),
+            'results_count': len(sorted_doc_ids),
             'search_time_ms': round(duration_ms, 2),
-            'results': sorted_urls[:20]  # Top 20 results like Flask API
+            'results': sorted_urls_with_headlines_and_articles[:20]  # Top 20 results like Flask API
         }
         
+        print(result_data)
         return result_data
         
     except Exception as e:
@@ -582,48 +609,7 @@ def search_endpoint():
 
 
 def trigger_search(query):
-    """Legacy function for command-line usage"""
-    lexicon = load_lexicon_into_memory(project_root / "index" / "lexicon.txt")
-    url_mapping = load_url_mapping(project_root / "index" / "url_mapping.txt")
-    print(f"Loaded {len(url_mapping)} URL mappings")
-    
-    query_processor = Query()
-    
-    # Get total document count (cached from URL mapping)
-    total_docs = len(url_mapping)
-    print(f"Total documents in collection: {total_docs}")
-    print("=" * 50)
-    
-    # Start timing the search
-    start_time = time.time()
-    
-    # Use TF-IDF for all queries (single word, multi-word, or AND queries)
-    # Stem the query for display purposes
-    if query_processor.is_multi_word_query(query) or 'AND' in query.upper():
-        stemmed_terms = query_processor.stem_all_query_terms(query)
-        print(f"Query - Stemmed terms: {' '.join(stemmed_terms)}")
-    else:
-        stemmed_query = query_processor.stem_query_term(query)
-        print(f"Single word - Stemmed query: '{query}' -> '{stemmed_query}'")
-    
-    # Use TF-IDF scoring for all queries
-    sorted_urls = query_processor.get_sorted_urls_by_tf_idf(query, lexicon, url_mapping)
-    
-    # End timing and calculate duration
-    end_time = time.time()
-    duration_ms = (end_time - start_time) * 1000  
-    # Convert to milliseconds
-    print(f"Search completed in {duration_ms:.2f} ms")
-    print(f"Results: {len(sorted_urls)} out of {total_docs} documents")
-    print("URLs:")
-    if sorted_urls:
-        for i, url in enumerate(sorted_urls[:5], 1):  # Show top 5 results
-            print(f"  {i}. {url}")
-        if len(sorted_urls) > 5:
-            print(f"  ... and {len(sorted_urls) - 5} more results")
-    else:
-        print("  No results found")
-
+    search_query_logic(query)
 
 if __name__ == "__main__":
     # Load data at startup

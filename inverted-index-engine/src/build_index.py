@@ -86,9 +86,11 @@ class URLMapper:
 class Document:
     """Represents a single document in the corpus"""
     
-    def __init__(self, url: str, content: str, encoding: str = "utf-8", stemmer: Optional[PorterStemmer] = None):
+    def __init__(self, url: str, content: str, encoding: str = "utf-8", stemmer: Optional[PorterStemmer] = None, headline: str = "", article: str = ""):
         self.url = self._clean_url(url)
         self.raw_content = content
+        self.headline = headline
+        self.article = article
         self.encoding = encoding
         self.stemmer = stemmer or PorterStemmer()
         self.parsed_text, self.important_text = self._parse_content()
@@ -528,6 +530,7 @@ class InvertedIndex:
         self.in_memory_index = defaultdict(list)
         self.doc_count = 0
         self.partial_index_files = []
+        self.metadata = {}  # Store doc_id -> {headline, article, excerpt, url} mapping
         
         self.enable_near_duplicate_detection = enable_near_duplicate_detection
         if enable_near_duplicate_detection:
@@ -563,6 +566,15 @@ class InvertedIndex:
             self.duplicate_detector.add_document(doc_id, fingerprint)
         
         self.doc_count += 1
+        
+        # Store metadata for this document
+        # excerpt = doc.article.replace('\n', ' ').strip() + "..." if len(doc.article) > 150 else doc.article
+        self.metadata[doc_id] = {
+            "headline": doc.headline,
+            "article": doc.article,
+            "excerpt": doc.article,
+            "url": doc.url
+        }
         
         # Add tokens to in-memory index
         for token, (normal_count, important_count) in doc.tokens.items():
@@ -608,6 +620,9 @@ class InvertedIndex:
         else:
             # No partial files, write in-memory index directly
             self._write_final_index()
+            
+        # Save metadata to JSON file
+        self._save_metadata()
     
     def _merge_partial_indexes(self):
         """Merge all partial index files into final index"""
@@ -688,6 +703,16 @@ class InvertedIndex:
             self.duplicate_detector.save_fingerprints(fingerprint_file)
             print(f"Fingerprints saved to {fingerprint_file}")
     
+    def _save_metadata(self):
+        """Save article metadata (headlines, articles, excerpts) to JSON file"""
+        metadata_file = self.index_dir / "article_metadata.json"
+        
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(self.metadata, f, ensure_ascii=False, indent=2)
+        
+        print(f"Article metadata saved to {metadata_file}")
+        print(f"Total articles with metadata: {len(self.metadata)}")
+    
     def get_index_size_kb(self) -> float:
         """Calculate total size of index files in KB"""
         total_size = 0
@@ -751,12 +776,14 @@ def iter_docs(root, stemmer: Optional[PorterStemmer] = None):
                     try:
                         data = json.loads(page.read_text(encoding="utf-8", errors="ignore"))
                         
-                        # Create Document object
+                        # Create Document object with headline and article data
                         document = Document(
                             url=data["url"],
                             content=data["content"],
                             encoding=data.get("encoding", "utf-8"),
-                            stemmer=stemmer
+                            stemmer=stemmer,
+                            headline=data.get("headline", ""),
+                            article=data.get("article", "")
                         )
                         
                         yield document
@@ -831,9 +858,8 @@ def load_duplicate_detector(index_dir: Path, similarity_threshold: int = 3) -> O
 def main():
     """Build inverted index from the dataset"""
     # Default to DEV folder relative to project root, or use absolute path if provided
-    data_root = Path(__file__).parent.parent / "data" / "DEV"
+    data_root = Path(__file__).parent.parent.parent / "current_crawler" / "web_crawler" / "data" / "downloaded_pages"
     print(f"Building inverted index from dataset at: {data_root}")
-    
     # Check if the directory exists
     if not data_root.exists():
         print(f"Error: Directory {data_root} does not exist!")
