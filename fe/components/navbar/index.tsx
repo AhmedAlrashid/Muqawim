@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 
 type NavbarProps = {
   onSearch?: (query: string) => void;
@@ -46,9 +46,15 @@ const styles = {
 };
 
 export default function Navbar({ onSearch }: NavbarProps) {
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onSearch?.(e.target.value);
+
+  const [input,setInput]=useState("")
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    onSearch?.(input.trim());
   };
+
 
   return (
     <header style={styles.header}>
@@ -58,12 +64,15 @@ export default function Navbar({ onSearch }: NavbarProps) {
         <a style={styles.headerLink}>Compare</a>
         <a style={styles.headerLink}>Play</a>
       </nav>
-      <input 
-        type="text" 
-        placeholder="Search events, people, countries..."
-        style={styles.searchBar}
-        onChange={handleSearchChange}
-      />
+      <form onSubmit={handleSubmit}>
+        <input 
+          type="text" 
+          placeholder="Search events, people, countries..."
+          value={input}
+          style={styles.searchBar}
+          onChange={(e) => setInput(e.target.value)}
+        />
+      </form>
     </header>
   );
 }

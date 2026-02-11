@@ -4,15 +4,14 @@ from nltk.tokenize import word_tokenize
 from index_the_index import load_lexicon_into_memory
 import time
 import json
-from flask import Flask, request, jsonify
-import flask
+from fastapi import FastAPI, HTTPException
+import math
+from pydantic import BaseModel
+from typing import List
+from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
 
 project_root = Path(__file__).parent.parent
-
-import math
-
-# Create Flask app
-app = Flask(__name__)
 
 # Global variables to store loaded data (initialized at startup)
 lexicon = None
@@ -491,7 +490,7 @@ class Query:
             results.append({
                 'doc_id': doc_id,
                 'headline': entry.get('headline', ''),
-                'article': entry.get('content', ''),
+                'article': entry.get('article', ''),
                 'url': entry.get('url', '')
             })
 
@@ -575,10 +574,9 @@ def search_query_logic(query_text):
             'total_documents': len(url_mapping),
             'results_count': len(sorted_doc_ids),
             'search_time_ms': round(duration_ms, 2),
-            'results': sorted_urls_with_headlines_and_articles[:20]  # Top 20 results like Flask API
+            'results': sorted_urls_with_headlines_and_articles[:10]  # Top 20 results like Flask API
         }
         
-        print(result_data)
         return result_data
         
     except Exception as e:
@@ -590,30 +588,61 @@ def search_query_logic(query_text):
         }
 
 
-@app.route('/search', methods=['GET'])
-def search_endpoint():
-    """Flask endpoint for searching the inverted index"""
-    query = request.args.get('q', '').strip()
-    
-    if not query:
-        return jsonify({'error': 'Query parameter "q" is required'}), 400
-    
-    # Use the improved search logic function
-    result_data = search_query_logic(query)
-    
-    # Check if there was an error
-    if 'error' in result_data:
-        return jsonify(result_data), 500
-    
-    return jsonify(result_data)
 
+# def trigger_search(query):
+#     search_query_logic(query)
 
-def trigger_search(query):
-    search_query_logic(query)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # STARTUP
+    print("Loading search data...")
 
-if __name__ == "__main__":
-    # Load data at startup
+    global lexicon, url_mapping, metadata
     load_search_data()
-    
-    # Start Flask app
-    app.run(debug=True, host='0.0.0.0', port=5000)
+
+    print("Search engine ready.")
+
+    yield  # ← Application runs here
+
+    # SHUTDOWN
+    print("Shutting down app...")
+
+app=FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # your frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class SearchResult(BaseModel):
+    doc_id: str
+    headline: str
+    article: str
+    url: str
+
+
+class SearchQueryResults(BaseModel):
+    query: str
+    query_info: str
+    total_documents: int
+    results_count: int
+    search_time_ms: float
+    results: List[SearchResult]
+
+@app.get("/searchQuery", response_model=SearchQueryResults)
+def search_endpoint(query: str):
+    if not query:
+        raise HTTPException(
+            status_code=400,
+            detail="Did not include a query"
+        )
+    try:
+        return search_query_logic(query)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Search failed: {str(e)}"
+        )

@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/navbar";
 import Sidebar from "../components/sidebar";
 import BreakingNews from "../components/breakingNews";
 import TitleCard from "@/components/titleCard";
+import Card from "@/components/card"
 import image from "@/public/Shrine+of+Imam+Hussain.-3109731395.jpg"
+import { fetchHeadlineAndArticle,Article} from "../api/article_headline";
 
 const styles = {
   container: {
@@ -25,10 +27,20 @@ const styles = {
 };
 
 export default function Home() {
-  const handleSearch = (query: string) => {
-    console.log('Search query:', query);
-    // TODO: Implement search functionality
+  const [articles, setArticles] = useState<Article[]>([]);
+
+  const handleSearch = async (query: string) => {
+    try {
+      const data = await fetchHeadlineAndArticle(query);
+      setArticles(data.results);
+    } catch (error) {
+      console.error(error);
+    }
   };
+
+const heroarticle=articles[0]
+const mediumArticles = articles.slice(1, 5);   // next 4
+const smallArticles = articles.slice(5, 10);   // next 5
 
   const handleSidebarClick = (itemId: string) => {
     console.log('Sidebar item clicked:', itemId);
@@ -74,7 +86,8 @@ export default function Home() {
         />
 
         <main style={styles.mainContent}>
-          <Navbar onSearch={handleSearch} />
+          <Navbar onSearch={handleSearch} 
+          />
           
           <BreakingNews 
             message="Ceasefire extended in Gaza — coverage diverge across outlets"
@@ -92,16 +105,15 @@ export default function Home() {
               color: '#6b7280',
               fontSize: 18
             }}>
+              {heroarticle &&
               <TitleCard
                 bgSrc={image.src}
-                title="Sample Title"
-                subtitle="HSDJFJDSNFJKDSBFJDSBFJKDSBFJKDSFBDJSBFSDJFBD
-                FDBSDJKFBSDJKF 
-                SFDSJKFB JKF DS\
-                 SFDS "
+                title={heroarticle.headline}
+                subtitle={heroarticle.article.slice(0, 100) + "..."}
                 datetime="April 27, 2024"
-              ></TitleCard>
+              ></TitleCard>}
             </div>
+            
           </div>
         </main>
       </div>
