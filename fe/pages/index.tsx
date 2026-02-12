@@ -10,7 +10,7 @@ import { fetchHeadlineAndArticle,Article} from "../api/article_headline";
 const styles = {
   container: {
     display: "flex",
-    height: "100vh",
+    minHeight: "100vh",
     margin: 0,
     padding: 0,
   } as React.CSSProperties,
@@ -20,9 +20,7 @@ const styles = {
     flexDirection: "column",
   } as React.CSSProperties,
   contentArea: {
-    flex: 1,
     padding: 24,
-    overflow: "auto",
   } as React.CSSProperties,
 };
 
@@ -39,9 +37,9 @@ export default function Home() {
   };
 
 const heroarticle=articles[0]
-const mediumArticles = articles.slice(1, 5);   // next 4
-const smallArticles = articles.slice(5, 10);   // next 5
-
+const largeArticles = articles.slice(1, 5);   // next 4
+const mediumArticles = articles.slice(5, 8); 
+const smallArticles=articles.slice(9,16)
   const handleSidebarClick = (itemId: string) => {
     console.log('Sidebar item clicked:', itemId);
     // TODO: Implement navigation
@@ -72,12 +70,6 @@ const smallArticles = articles.slice(5, 10);   // next 5
           height: 100%;
           overflow-x: hidden;
         }
-        
-        #__next {
-          margin: 0;
-          padding: 0;
-          height: 100vh;
-        }
       `}</style>
       <div style={styles.container}>
         <Sidebar 
@@ -97,23 +89,73 @@ const smallArticles = articles.slice(5, 10);   // next 5
 
           <div style={styles.contentArea}>
             {/* Main content will go here */}
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'flex-start', 
-              justifyContent: 'flex-start', 
-              height: '100%',
-              color: '#6b7280',
-              fontSize: 18
+<div style={{
+  display: 'flex',
+  gap: '20px',
+  alignItems: 'flex-start',
+}}>
+
+  <div style={{ flex: 3 }}>
+    {heroarticle && (
+      <TitleCard
+        bgSrc={heroarticle.image}
+        title={heroarticle.headline}
+        subtitle={heroarticle.article.slice(0, 200) + "..."}
+        datetime="Febraury 12, 2026"
+      />
+    )}
+  </div>
+
+  <div style={{
+    flex: 2,
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "20px",
+  }}>
+    {largeArticles.map((article) => (
+      <Card
+        key={article.doc_id}
+        title={article.headline}
+        imgSrc={article.image}
+        size="large"
+      />
+    ))}
+  </div>
+
+  <div style={{
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px"
+  }}>
+    {mediumArticles.map((article) => (
+      <Card
+        key={article.doc_id}
+        title={article.headline}
+        imgSrc={article.image}
+      />
+    ))}
+  </div>
+
+</div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                gap:"40px",
+                marginTop: "40px",
+                flex:1
             }}>
-              {heroarticle &&
-              <TitleCard
-                bgSrc={image.src}
-                title={heroarticle.headline}
-                subtitle={heroarticle.article.slice(0, 100) + "..."}
-                datetime="April 27, 2024"
-              ></TitleCard>}
+                {smallArticles.map((article) =>
+                <Card
+                  key={article.doc_id}
+                  title={article.headline}
+                  imgSrc={article.image}
+                  size="small"
+                />
+                )}
             </div>
-            
           </div>
         </main>
       </div>

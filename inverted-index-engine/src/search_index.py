@@ -491,7 +491,8 @@ class Query:
                 'doc_id': doc_id,
                 'headline': entry.get('headline', ''),
                 'article': entry.get('article', ''),
-                'url': entry.get('url', '')
+                'url': entry.get('url', ''),
+                'image':entry.get('image','')
             })
 
         return results
@@ -574,7 +575,7 @@ def search_query_logic(query_text):
             'total_documents': len(url_mapping),
             'results_count': len(sorted_doc_ids),
             'search_time_ms': round(duration_ms, 2),
-            'results': sorted_urls_with_headlines_and_articles[:10]  # Top 20 results like Flask API
+            'results': sorted_urls_with_headlines_and_articles[:15]  # Top 20 results like Flask API
         }
         
         return result_data
@@ -622,6 +623,7 @@ class SearchResult(BaseModel):
     headline: str
     article: str
     url: str
+    image:str
 
 
 class SearchQueryResults(BaseModel):

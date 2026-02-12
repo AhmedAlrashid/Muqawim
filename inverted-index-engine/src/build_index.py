@@ -86,7 +86,7 @@ class URLMapper:
 class Document:
     """Represents a single document in the corpus"""
     
-    def __init__(self, url: str, content: str, encoding: str = "utf-8", stemmer: Optional[PorterStemmer] = None, headline: str = "", article: str = ""):
+    def __init__(self, url: str, content: str,image:str, encoding: str = "utf-8", stemmer: Optional[PorterStemmer] = None, headline: str = "", article: str = ""):
         self.url = self._clean_url(url)
         self.raw_content = content
         self.headline = headline
@@ -95,6 +95,7 @@ class Document:
         self.stemmer = stemmer or PorterStemmer()
         self.parsed_text, self.important_text = self._parse_content()
         self.tokens = {}  # Maps stemmed token -> (normal_count, important_count)
+        self.image = image
         self.doc_id = None  # Will be set by the index when needed
     
     def _clean_url(self, url: str) -> str:
@@ -573,7 +574,8 @@ class InvertedIndex:
             "headline": doc.headline,
             "article": doc.article,
             "excerpt": doc.article,
-            "url": doc.url
+            "url": doc.url,
+            "image":doc.image
         }
         
         # Add tokens to in-memory index
@@ -780,6 +782,7 @@ def iter_docs(root, stemmer: Optional[PorterStemmer] = None):
                         document = Document(
                             url=data["url"],
                             content=data["content"],
+                            image=data.get("image", ""),
                             encoding=data.get("encoding", "utf-8"),
                             stemmer=stemmer,
                             headline=data.get("headline", ""),

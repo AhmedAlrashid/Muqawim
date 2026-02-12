@@ -1,18 +1,13 @@
 import React from "react";
+import Image from "next/image";
 
 type TitleCardProps = {
-  bgSrc?: string; // leading slash or absolute URL recommended
+  bgSrc?: string;
   title: string;
   subtitle?: string;
   datetime?: string;
   onClick?: () => void;
 };
-
-function normalizeSrc(src?: string) {
-  if (!src) return undefined;
-  if (src.startsWith("/") || src.startsWith("http://") || src.startsWith("https://")) return src;
-  return `/${src}`;
-}
 
 export default function TitleCard({
   bgSrc,
@@ -21,28 +16,23 @@ export default function TitleCard({
   datetime,
   onClick,
 }: TitleCardProps) {
-  const bg = normalizeSrc(bgSrc) || undefined;
-
   const container: React.CSSProperties = {
     position: "relative",
-    width: "600px",
-    height: "75%",
+    width: "100%",
+    minHeight: "830px",
     borderRadius: 12,
     overflow: "hidden",
-    backgroundImage: bg ? `url(${bg})` : undefined,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
     display: "flex",
     alignItems: "flex-end",
     cursor: onClick ? "pointer" : "default",
-    flexShrink: 0,
   };
 
   const overlay: React.CSSProperties = {
     position: "absolute",
     inset: 0,
-    background: "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0.65) 100%)",
-    pointerEvents: "none",
+    background:
+      "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0.65) 100%)",
+    zIndex: 1,
   };
 
   const content: React.CSSProperties = {
@@ -57,7 +47,7 @@ export default function TitleCard({
   const titleStyle: React.CSSProperties = {
     margin: 0,
     fontSize: "clamp(24px, 6vw, 56px)",
-    lineHeight: 1.02,
+    lineHeight: 1.05,
     fontWeight: 800,
     letterSpacing: "-0.02em",
     textShadow: "0 6px 20px rgba(0,0,0,0.5)",
@@ -78,12 +68,27 @@ export default function TitleCard({
     background: "rgba(0,0,0,0.25)",
     padding: "6px 10px",
     borderRadius: 999,
+    zIndex: 2,
   };
 
   return (
     <section style={container} onClick={onClick} aria-label={title}>
+      {bgSrc && (
+        <Image
+          src={bgSrc}
+          alt={title}
+          fill
+          priority
+          style={{
+            objectFit: "cover", // 🔥 same as background-size: cover
+          }}
+        />
+      )}
+
       <div style={overlay} />
+
       {datetime && <div style={metaStyle}>{datetime}</div>}
+
       <div style={content}>
         <h1 style={titleStyle}>{title}</h1>
         {subtitle && <p style={subtitleStyle}>{subtitle}</p>}

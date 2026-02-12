@@ -77,7 +77,8 @@ def get_slug(url):
     path = urlparse(url).path  # "/en/pressing-for-protection/"
     parts = [p for p in path.split("/") if p]  # ["en", "pressing-for-protection"]
     if len(parts) >= 2 and parts[0] == "en":
-        return parts[1]
+        slug=parts[1]
+        return slug.replace("-", " ").title()
     return None
 
 def extract_article_text(soup):
@@ -140,27 +141,30 @@ def save_page_to_json(url, content):
 
         # Use substring check (Python strings don't have `includes`)
         if "liberties" in url:
-            # Prefer <h1> headline when available, otherwise use slug
+            image = None
+
             if soup:
                 h1 = soup.find('h1')
                 if h1 and h1.get_text(strip=True):
                     headline = h1.get_text(strip=True)
                 else:
                     headline = get_slug(url)
+
                 article = extract_article_text(soup)
+
+                # Extract image
+                og_image = soup.find("meta", property="og:image")
+                if og_image and og_image.get("content"):
+                    image = og_image["content"]
+
+                if not image:
+                    article_img = soup.find("img")
+                    if article_img and article_img.get("src"):
+                        image = article_img["src"]
             else:
                 headline = get_slug(url)
                 article = None
-
-        # Fallbacks if extraction failed
-        if headline is None:
-            headline = get_slug(url) or ""
-        if article is None:
-            # If we have soup, fall back to full page text; otherwise leave empty
-            if soup:
-                article = soup.get_text(" ", strip=True)
-            else:
-                article = ""
+                image = None
 
         # Create JSON object with URL and content
         page_data = {
@@ -169,13 +173,16 @@ def save_page_to_json(url, content):
             # "date":date,
             "article": article,
             "content": content,
+            "image" : image, 
             "encoding": "utf-8"
         }
         
         # Write to file
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(page_data, f, ensure_ascii=False)
-        
+        print (image)
+        print(article)
+        print(headline)
         print(f"[STORAGE] Saved page: {url}")
         return True
         

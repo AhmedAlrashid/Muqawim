@@ -3,6 +3,7 @@ export type Article = {
   headline: string;
   article: string;
   url: string;
+  image:string;
 };
 
 export type ArticleList = {

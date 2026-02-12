@@ -85,7 +85,7 @@ export default function Card({
 
   // size adjustments: small is quite small, medium is between small and title (large)
   const sizeSettings = {
-    small: { maxWidth: 220, horizontalImage: 80, titleSize: 13, excerptSize: 12, cardHeightVertical: 110, cardMinHeightHorizontal: 80 },
+    small: { maxWidth: 300, horizontalImage: 80, titleSize: 13, excerptSize: 12, cardHeightVertical: 170, cardMinHeightHorizontal: 80 },
     medium: { maxWidth: 360, horizontalImage: 140, titleSize: 15, excerptSize: 13, cardHeightVertical: 200, cardMinHeightHorizontal: 120 },
     large: { maxWidth: 520, horizontalImage: 180, titleSize: 18, excerptSize: 14, cardHeightVertical: 320, cardMinHeightHorizontal: 160 },
   } as const;
